@@ -64,8 +64,10 @@ pipeline {
                         echo $DOCKER_PASS | docker login -u $DOCKER_ID --password-stdin
 
                         docker push $DOCKER_ID/$DOCKER_IMAGE_1:$DOCKER_TAG
+			docker push $DOCKER_ID/$DOCKER_IMAGE_1:latest
 
 			docker push $DOCKER_ID/$DOCKER_IMAGE_2:$DOCKER_TAG
+			docker push $DOCKER_ID/$DOCKER_IMAGE_2:latest
                     '''
                 }
             }
