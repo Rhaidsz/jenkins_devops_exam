@@ -1,88 +1,98 @@
 pipeline {
 
+    agent any
+
     environment {
         DOCKER_ID = "kamilburuk"
         DOCKER_IMAGE_1 = "liora-jenkins-exam-cast-service"
-	DOCKER_IMAGE_2 = "liora-jenkins-exam-movie-service"
+        DOCKER_IMAGE_2 = "liora-jenkins-exam-movie-service"
         DOCKER_TAG = "v.${BUILD_ID}.0"
     }
-
-    agent any
 
     stages {
 
         stage('Docker Build') {
-
             steps {
-                script {
-                    sh '''
-                        docker rm -f cast-service || true
-			docker rm -f movie-service || true
+                sh '''
+                    docker rm -f cast-service || true
+                    docker rm -f movie-service || true
 
-                        docker build -t $DOCKER_ID/$DOCKER_IMAGE_1:$DOCKER_TAG \
-				     -t $DOCKER_ID/$DOCKER_IMAGE_1:latest \
-				     ./cast-service
-			
-			docker build -t $DOCKER_ID/$DOCKER_IMAGE_2:$DOCKER_TAG \
-				     -t $DOCKER_ID/$DOCKER_IMAGE_2:latest \
-				     ./movie-service
-                    '''
-                }
+                    docker build \
+                        -t $DOCKER_ID/$DOCKER_IMAGE_1:$DOCKER_TAG \
+                        -t $DOCKER_ID/$DOCKER_IMAGE_1:latest \
+                        ./cast-service
+
+                    docker build \
+                        -t $DOCKER_ID/$DOCKER_IMAGE_2:$DOCKER_TAG \
+                        -t $DOCKER_ID/$DOCKER_IMAGE_2:latest \
+                        ./movie-service
+                '''
             }
         }
 
         stage('Docker Run') {
-
             steps {
-                script {
-                    sh '''
-                        docker run -d -p 8002:8000 \
+                sh '''
+                    docker run -d -p 8002:8000 \
                         --name cast-service \
                         $DOCKER_ID/$DOCKER_IMAGE_1:$DOCKER_TAG
 
-			sleep 5
+                    sleep 5
 
-			docker run -d -p 8001:8000 \
+                    docker run -d -p 8001:8000 \
                         --name movie-service \
                         $DOCKER_ID/$DOCKER_IMAGE_2:$DOCKER_TAG
 
-                        sleep 5
-                    '''
-                }
+                    sleep 5
+                '''
+            }
+        }
+
+        stage('Test Acceptance') {
+            steps {
+                sh '''
+                    curl --fail -I localhost:8001/api/v1/movies/docs
+                    curl --fail -I localhost:8002/api/v1/casts/docs
+                '''
             }
         }
 
         stage('Docker Push') {
-
             environment {
-                DOCKER_PASS = credentials("DOCKER_HUB_PASS")
+                DOCKER_PASS = credentials('DOCKER_HUB_PASS')
             }
 
             steps {
-                script {
-                    sh '''
-                        echo $DOCKER_PASS | docker login -u $DOCKER_ID --password-stdin
+                sh '''
+                    echo $DOCKER_PASS | docker login -u $DOCKER_ID --password-stdin
 
-                        docker push $DOCKER_ID/$DOCKER_IMAGE_1:$DOCKER_TAG
-			docker push $DOCKER_ID/$DOCKER_IMAGE_1:latest
+                    docker push $DOCKER_ID/$DOCKER_IMAGE_1:$DOCKER_TAG
+                    docker push $DOCKER_ID/$DOCKER_IMAGE_1:latest
 
-			docker push $DOCKER_ID/$DOCKER_IMAGE_2:$DOCKER_TAG
-			docker push $DOCKER_ID/$DOCKER_IMAGE_2:latest
-                    '''
-                }
+                    docker push $DOCKER_ID/$DOCKER_IMAGE_2:$DOCKER_TAG
+                    docker push $DOCKER_ID/$DOCKER_IMAGE_2:latest
+                '''
             }
-	}
+        }
 
-        stage('Test Acceptance') {
-
+        stage('Deploy Dev') {
             steps {
-                script {
-                    sh '''
-                        curl --fail -I localhost:8001/api/v1/movies/docs
-                        curl --fail -I localhost:8002/api/v1/casts/docs
-                    '''
-                }
+                sh '''
+                    helm upgrade --install movie-app ./charts \
+                        -n dev \
+                        --set images.cast.tag=$DOCKER_TAG \
+                        --set images.movie.tag=$DOCKER_TAG
+                '''
             }
+        }
+    }
+
+    post {
+        always {
+            sh '''
+                docker rm -f cast-service || true
+                docker rm -f movie-service || true
+            '''
         }
     }
 }
