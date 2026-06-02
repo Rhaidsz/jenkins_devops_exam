@@ -14,9 +14,6 @@ pipeline {
         stage('Docker Build') {
             steps {
                 sh '''
-                    docker rm -f cast-service || true
-                    docker rm -f movie-service || true
-
                     docker build \
                         -t $DOCKER_ID/$DOCKER_IMAGE_1:$DOCKER_TAG \
                         -t $DOCKER_ID/$DOCKER_IMAGE_1:latest \
@@ -30,34 +27,8 @@ pipeline {
             }
         }
 
-        stage('Docker Run') {
-            steps {
-                sh '''
-                    docker run -d -p 8002:8000 \
-                        --name cast-service \
-                        $DOCKER_ID/$DOCKER_IMAGE_1:$DOCKER_TAG
-
-                    sleep 5
-
-                    docker run -d -p 8001:8000 \
-                        --name movie-service \
-                        $DOCKER_ID/$DOCKER_IMAGE_2:$DOCKER_TAG
-
-                    sleep 5
-                '''
-            }
-        }
-
-        stage('Test Acceptance') {
-            steps {
-                sh '''
-                    curl --fail -I localhost:8001/api/v1/movies/docs
-                    curl --fail -I localhost:8002/api/v1/casts/docs
-                '''
-            }
-        }
-
         stage('Docker Push') {
+
             environment {
                 DOCKER_PASS = credentials('DOCKER_HUB_PASS')
             }
@@ -75,24 +46,47 @@ pipeline {
             }
         }
 
-        stage('Deploy Dev') {
+        stage('Deploy DEV') {
             steps {
                 sh '''
-                    helm upgrade --install movie-app ./charts \
-                        -n dev \
-                        --set images.cast.tag=$DOCKER_TAG \
-                        --set images.movie.tag=$DOCKER_TAG
+                    helm upgrade --install movie-app ./charts -n dev
                 '''
             }
         }
-    }
 
-    post {
-        always {
-            sh '''
-                docker rm -f cast-service || true
-                docker rm -f movie-service || true
-            '''
+        stage('Acceptance Test DEV') {
+            steps {
+                sh '''
+                    kubectl rollout status deployment/cast-service -n dev --timeout=120s
+                    kubectl rollout status deployment/movie-service -n dev --timeout=120s
+                    kubectl rollout status deployment/nginx -n dev --timeout=120s
+                '''
+            }
+        }
+
+        stage('Deploy QA') {
+            steps {
+                sh '''
+                    helm upgrade --install movie-app ./charts -n qa
+                '''
+            }
+        }
+
+        stage('Deploy STAGING') {
+            steps {
+                sh '''
+                    helm upgrade --install movie-app ./charts -n staging
+                '''
+            }
+        }
+
+        stage('Deploy PROD') {
+            steps {
+                input message: 'Deploy to PROD?'
+                sh '''
+                    helm upgrade --install movie-app ./charts -n prod
+                '''
+            }
         }
     }
 }
