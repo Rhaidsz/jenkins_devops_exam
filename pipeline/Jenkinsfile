@@ -7,6 +7,7 @@ pipeline {
         DOCKER_IMAGE_1 = "liora-jenkins-exam-cast-service"
         DOCKER_IMAGE_2 = "liora-jenkins-exam-movie-service"
         DOCKER_TAG = "v.${BUILD_ID}.0"
+	KUBECONFIG = credentials("config")
     }
 
     stages {
@@ -49,6 +50,12 @@ pipeline {
         stage('Deploy DEV') {
             steps {
                 sh '''
+		    rm -rf .kube
+		    mkdir .kube
+
+		    cat $KUBECONFIG > .kube/config
+
+		    export KUBECONFIG=$(pwd)/.kube/config
                     helm upgrade --install movie-app ./charts -n dev
                 '''
             }
@@ -67,6 +74,12 @@ pipeline {
         stage('Deploy QA') {
             steps {
                 sh '''
+		    rm -rf .kube
+		    mkdir .kube
+
+		    cat $KUBECONFIG > .kube/config
+
+		    export KUBECONFIG=$(pwd)/.kube/config
                     helm upgrade --install movie-app ./charts -n qa
                 '''
             }
@@ -75,6 +88,12 @@ pipeline {
         stage('Deploy STAGING') {
             steps {
                 sh '''
+                    rm -rf .kube
+                    mkdir .kube
+
+                    cat $KUBECONFIG > .kube/config
+
+                    export KUBECONFIG=$(pwd)/.kube/config
                     helm upgrade --install movie-app ./charts -n staging
                 '''
             }
@@ -84,6 +103,12 @@ pipeline {
             steps {
                 input message: 'Deploy to PROD?'
                 sh '''
+                    rm -rf .kube
+                    mkdir .kube
+
+                    cat $KUBECONFIG > .kube/config
+
+                    export KUBECONFIG=$(pwd)/.kube/config
                     helm upgrade --install movie-app ./charts -n prod
                 '''
             }
