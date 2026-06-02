@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert
+    kompose.version: 1.37.0 (fb0539e64)
+  labels:
+    io.kompose.service: movie-service
+  name: movie-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: movie-service
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert
+        kompose.version: 1.37.0 (fb0539e64)
+      labels:
+        io.kompose.service: movie-service
+    spec:
+      containers:
+        - args:
+            - uvicorn
+            - app.main:app
+            - --host
+            - 0.0.0.0
+            - --port
+            - "8000"
+          env:
+            - name: CAST_SERVICE_HOST_URL
+              value: http://cast-service:8000/api/v1/casts/
+            - name: DATABASE_URI
+              value: postgresql://movie_db_username:movie_db_password@movie-db/movie_db_dev
+          image: kamilburuk/liora-jenkins-exam-movie-service
+          name: movie-service
+          ports:
+            - containerPort: 8000
+              protocol: TCP
+      restartPolicy: Always

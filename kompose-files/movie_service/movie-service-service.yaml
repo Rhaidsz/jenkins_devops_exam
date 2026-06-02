@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    kompose.cmd: kompose convert
+    kompose.version: 1.37.0 (fb0539e64)
+  labels:
+    io.kompose.service: movie-service
+  name: movie-service
+spec:
+  ports:
+    - port: 8000
+      targetPort: 8000
+  selector:
+    io.kompose.service: movie-service
