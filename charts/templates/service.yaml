@@ -1,16 +1,65 @@
+---
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "fastapiapp.fullname" . }}
-  labels:
-    {{- include "fastapiapp.labels" . | nindent 4 }}
+  name: cast-db
 spec:
-  type: {{ .Values.service.type }}
-  ports:
-    - port: {{ .Values.service.port }}
-      targetPort: {{ .Values.service.targetPort }}
-      nodePort: {{ .Values.service.nodePort }}
-      protocol: TCP
-      name: http
   selector:
-    {{- include "fastapiapp.selectorLabels" . | nindent 4 }}
+    io.kompose.service: cast-db
+  ports:
+    - port: 5432
+      targetPort: 5432
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: movie-db
+spec:
+  selector:
+    io.kompose.service: movie-db
+  ports:
+    - port: 5432
+      targetPort: 5432
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    io.kompose.service: cast-service
+  name: cast-service
+spec:
+  ports:
+    - port: 8000
+      targetPort: 8000
+  selector:
+    io.kompose.service: cast-service
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    io.kompose.service: movie-service
+  name: movie-service
+spec:
+  ports:
+    - port: 8000
+      targetPort: 8000
+  selector:
+    io.kompose.service: movie-service
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    io.kompose.service: nginx
+  name: nginx
+spec:
+  ports:
+    - port: 8080
+      targetPort: 8080
+  selector:
+    io.kompose.service: nginx
